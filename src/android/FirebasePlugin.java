@@ -18,8 +18,9 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.analytics.FirebaseAnalytics;
-import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.installations.FirebaseInstallations;
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigInfo;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
@@ -244,17 +245,19 @@ public class FirebasePlugin extends CordovaPlugin {
     private void onTokenRefresh(final CallbackContext callbackContext) {
         FirebasePlugin.tokenRefreshCallbackContext = callbackContext;
 
-        cordova.getThreadPool().execute(new Runnable() {
+        cordova.getActivity().runOnUiThread(new Runnable() {
             public void run() {
-                try {
-                    String currentToken = FirebaseInstanceId.getInstance().getToken();
-                    if (currentToken != null) {
-                        FirebasePlugin.sendToken(currentToken);
+                FirebaseMessaging.getInstance().getToken().addOnCompleteListener(new OnCompleteListener<String>() {
+                    @Override
+                    public void onComplete(Task<String> task) {
+                        if (task.isSuccessful()) {
+                            String currentToken = task.getResult();
+                            if (currentToken != null) {
+                                FirebasePlugin.sendToken(currentToken);
+                            }
+                        }
                     }
-                } catch (Exception e) {
-                    Crashlytics.logException(e);
-                    callbackContext.error(e.getMessage());
-                }
+                });
             }
         });
     }
@@ -322,42 +325,57 @@ public class FirebasePlugin extends CordovaPlugin {
 
     // DEPRECTED - alias of getToken
     private void getInstanceId(final CallbackContext callbackContext) {
-        cordova.getThreadPool().execute(new Runnable() {
+        cordova.getActivity().runOnUiThread(new Runnable() {
             public void run() {
-                try {
-                    String token = FirebaseInstanceId.getInstance().getToken();
-                    callbackContext.success(token);
-                } catch (Exception e) {
-                    callbackContext.error(e.getMessage());
-                }
+                FirebaseMessaging.getInstance().getToken().addOnCompleteListener(new OnCompleteListener<String>() {
+                    @Override
+                    public void onComplete(Task<String> task) {
+                        if (!task.isSuccessful()) {
+                            callbackContext.error(task.getException().getMessage());
+                            return;
+                        }
+                        String token = task.getResult();
+                        callbackContext.success(token);
+                    }
+                });
             }
         });
     }
 
     private void getId(final CallbackContext callbackContext) {
-        cordova.getThreadPool().execute(new Runnable() {
+        cordova.getActivity().runOnUiThread(new Runnable() {
             public void run() {
-                try {
-                    String id = FirebaseInstanceId.getInstance().getId();
-                    callbackContext.success(id);
-                } catch (Exception e) {
-                    Crashlytics.logException(e);
-                    callbackContext.error(e.getMessage());
-                }
+                FirebaseInstallations.getInstance().getId().addOnCompleteListener(new OnCompleteListener<String>() {
+                    @Override
+                    public void onComplete(Task<String> task) {
+                        if (!task.isSuccessful()) {
+                            Crashlytics.logException(task.getException());
+                            callbackContext.error(task.getException().getMessage());
+                            return;
+                        }
+                        String id = task.getResult();
+                        callbackContext.success(id);
+                    }
+                });
             }
         });
     }
 
     private void getToken(final CallbackContext callbackContext) {
-        cordova.getThreadPool().execute(new Runnable() {
+        cordova.getActivity().runOnUiThread(new Runnable() {
             public void run() {
-                try {
-                    String token = FirebaseInstanceId.getInstance().getToken();
-                    callbackContext.success(token);
-                } catch (Exception e) {
-                    Crashlytics.logException(e);
-                    callbackContext.error(e.getMessage());
-                }
+                FirebaseMessaging.getInstance().getToken().addOnCompleteListener(new OnCompleteListener<String>() {
+                    @Override
+                    public void onComplete(Task<String> task) {
+                        if (!task.isSuccessful()) {
+                            Crashlytics.logException(task.getException());
+                            callbackContext.error(task.getException().getMessage());
+                            return;
+                        }
+                        String token = task.getResult();
+                        callbackContext.success(token);
+                    }
+                });
             }
         });
     }
@@ -443,15 +461,19 @@ public class FirebasePlugin extends CordovaPlugin {
     }
 
     private void unregister(final CallbackContext callbackContext) {
-        cordova.getThreadPool().execute(new Runnable() {
+        cordova.getActivity().runOnUiThread(new Runnable() {
             public void run() {
-                try {
-                    FirebaseInstanceId.getInstance().deleteInstanceId();
-                    callbackContext.success();
-                } catch (Exception e) {
-                    Crashlytics.logException(e);
-                    callbackContext.error(e.getMessage());
-                }
+                FirebaseInstallations.getInstance().delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(Task<Void> task) {
+                        if (!task.isSuccessful()) {
+                            Crashlytics.logException(task.getException());
+                            callbackContext.error(task.getException().getMessage());
+                            return;
+                        }
+                        callbackContext.success();
+                    }
+                });
             }
         });
     }
